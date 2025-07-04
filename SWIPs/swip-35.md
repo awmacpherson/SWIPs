@@ -43,11 +43,11 @@ Lack of clarity regarding the interpretation of batch parameters has led to misg
 
 #### Privacy 
 
-The signature on a stamp serves as *proof of relevance*[^2] when it comes to evidence submitted as part of the claim transaction. As long as stamps are self-signed by the uploader, the batch owner can be identified as the originator of the data for 3rd parties. 
+The signature on a stamp serves as *proof of relevance*[^2] when it comes to evidence submitted as part of the claim transaction. As long as stamps are self-signed by the uploader, the batch owner can be identified as the originator of the data by 3rd parties. 
 
 [^2]: The validation of a batch owner associating a chunk with a postage batch serves to proof that someone is indeed willing to pay for the data in question.
 
-Somewhat independently of this, the fact that same-owner batches are used when uploading a file, the chunks uploaded during one session leak co-constituency, i.e., which chunks are likely to constitute one file, directory or belong together in a single upload session. This overshadows somewhat Swarm's otherwise rather strong privacy claims.
+Somewhat independently of this, the fact that same-owner batches are used when uploading a file, the chunks uploaded during one session leak co-constituency, i.e., which chunks are likely to constitute one file, directory or belong together in a single upload session. This somewhat overshadows  Swarm's otherwise rather strong privacy proposition.
 
 
 #### Insurance
@@ -120,13 +120,13 @@ Double signing of a slot (though detectable[^17]) will only be avoided if the ow
 ##### Postage batch utilisation
 
 The quota represented by the set of storage slots of a batch is evenly distributed in a number of buckets, as it also serves to force balanced use across neighbourhoods. 
-Even though the most effecient utilisation of a batch is if stamps can max out each bucket, already a single bucket filled up will make an immutable batch practically not usable since, as it has no slots available in the bucket filled, it cannot be guaranteed to stamp just any chunk.[^31]
+Even though the most effecient utilisation of a batch is if stamps can max out each bucket, already a single bucket filled up will make an immutable batch practically not usable since, as it has no slots available in the bucket filled, it cannot be guaranteed to stamp just any chunk[^31].
 
-[^31] Incomplete utilisation can be counteracted with making sure you can reassign the 
-'same' chunk to another bucket by either [mining]() or having availability guaranteed by a constant influx of chunks (see section below). On the other hand, with the variance limited, the actual discount can also be made explicit in the current system, and, therefore [user expectations of their quota purchased that is suggested bt the batch depth must be modulated by factoring in the packed address chunks needed to represent files, and the manifest nodes to serve as directories, erasure code parities  
+[^31]: Incomplete utilisation can be counteracted with making sure you can reassign the 
+'same' chunk to another bucket by either [mining]() or having availability guaranteed by a constant influx of chunks (see section below). On the other hand, with the variance limited, the actual discount can also be made explicit in the current system, and, therefore [user expectations of their quota purchased that is suggested by the batch depth must be modulated by factoring in the packed address chunks needed to represent files, and the manifest nodes to serve as directories as well as erasure code parities, etc.  
  
 Instead the volume called [*effective utilisation*](https://www.overleaf.com/4919957411cgrncysjqrmv#3b42ca) must be given to users.
-The effective batch  utilisation rate increases with overall volume implying a natural overhead for small batches[^1] 
+The effective batch  utilisation rate increases with overall volume implying a natural overhead for small batches[^1].
 
 [^1]: or more naturally put, there is an incerasing discount rate when purchasing larger volumes.
 
@@ -178,8 +178,6 @@ We propose that chunks have a *secondary address*, defined as the (legacy Keccak
 
 So when nodes swear on to provide insurance (or insurance/availability level X service), they register their address with a stake on a (the?) staking contract.  It is important that providers should be distributed evenly in neighbourhoods, ideally of the same size as that dictated by the reserve. 
 
-Maybe all full nodes are providers by default. This is very useful because when a node provides the service, they expect chunks to their neighbourhood by the secondary address (the hash of the BMT address) of a CAC --- from now a *new chunk type*. Once they receive it, they must provide the uploader with a storage receipt as an acknowledgment which they send back to the originator using the same route (backwarding).
-
 Some insurers may just take on the task of keeping the chunks retrieveable. For this, they need to keep a postage batch alive that issued the stamp of the chunk, throughout the period matching the requirement in the chunk request.
 
 They can keep the chunk in this batch retrieveable by regularly topping up the batch if needed. Since the hashes are uniformly distributed, this batch is expected to be naturally balanced as it should be. So it is quite realistic for the node to be able to fill it. 
@@ -218,7 +216,7 @@ The SWEAR contract allows nodes to register their public key to become
 accountable participants in the swarm. Registration involves sending
 the deposit to the SWEAR contract, which serves as collateral in case
 the terms that registered nodes "swear" to keep are violated (i.e. nodes
-do not keep their promise to store). The registration is open-ended  Users of Swarm should be able to count on the loss of deposit as
+do not keep their promise to store). The registration is open-ended. Users of Swarm should be able to count on the loss of deposit as
 a disincentive against foul play for as long as the insurer node has open commitments.
 Therefore, even a well-performing Swarm node is only eligible to reclaim their
 deposit after all their commitments are closed or taken over by new nodes.
@@ -232,33 +230,32 @@ When a user attempts to retrieve insured content and fails to find a
 chunk, they can report the loss by submitting a challenge analogously to a court
 case in which the insurers the defendants who are guilty until proven innocent. Similarly to a court procedure, public litigation on the blockchain should be a last resort when the rules have been abused despite the deterrents and positive incentives.
 The challenge takes the form of a transaction sent to the SWINDLE
-contract, in which the challenger presents evidence  implicating a particular node having made a promise to insure that particular chunk for a period that has not ended yet. 
+contract, in which the challenger presents evidence  implicating a particular node having made a promise to guarantee availability of that particular chunk for a period that has not ended yet. 
 
 Any node is allowed to send a challenge for a chunk as long as
 they have evidence available to back the claim.  The validity of the challenge as well as its refutation must be easily verifiable by the contract. The contract
 verifies challenge by checking the following conditions:
-1. *covered* -- The chunk in question is (implicitly) covered by the insurance.
-1. *authentic* -- The insurance was signed with the key the node registered with.
-2. *active* -- The expiry date of the insurance has not passed.
-3. *funded* -- Sufficient funds are sent in the transaction[^13] 
+1. *covered* -- The chunk in question is (implicitly) covered (in scope for the guarantee).
+1. *authentic* -- The guarantor (the key used to sign the guarantee) is the identity node registered with.
+3. *active* -- The expiry date of the guarantee has not passed.
+4. *funded* -- Sufficient funds are sent in the transaction[^13].
 
 
 [^13]: in order to compensate the insurer for uploading the chunk in case of a refuted challenge. The payment sent with the transaction is to disincentivise frivolous litigation,
 i.e. bombarding the blockchain with bogus challenges and potentially
 causing a DoS attack.
 
-Upon succcessful challenge,   an event is logged by the contract to notify the accused of their obligation to refute. The challenge remains open for a fixed time period, the end of which is the deadline for refuting the challenge. Refutation itself consists of uploading the entire chunk. This (1) serves as 3rd party verifiable proof that they keep their promise as well as (2) makes the disputed data available to nodes that require it.
+Upon succcessful challenge,   an event is logged by the contract to notify the accused of their obligation to refute. The challenge remains open for a fixed time period, the end of which is the deadline for refuting the challenge. Refutation itself consists of uploading the entire chunk. This (1) serves as 3rd party verifiable proof that they keep their promise as well as (2) makes the disputed data available to the nodes that require it.
 Upon successful refutation,  the challenge is cleared from the blockchain state. While the stake of the accused node remains untouched, the cost of uploading
 the chunk must be borne by the challenger and is paid from the deposit. 
 
 
 If the deadline passes without successful refutation of the challenge,
-then the charge is regarded as proven and the case enters into the en-
-forcement stage. Nodes that are proven guilty of losing a chunk must lose
+then the charge is regarded as proven and the case enters into the enforcement stage. Nodes that are proven guilty of losing a chunk must lose
 their stake. Enforcement is guaranteed to be successful by the fact
 that nodes' stakes are kept locked up (in the SWEAR contract).
 If, on litigation, it turns out that a chunk (that was covered)
-was lost, the deposit must be at least partly burned.[^4] 
+was lost, the deposit must be at least partly burned[^4]. 
 
 [^4]: Note that this is necessary because, if penalties were paid out as compensation, it would provide an avenue of early exit for a registered node by "losing" bogus chunks that had been challenged on by colluding users.
 
@@ -317,7 +314,7 @@ The  will be detailed in the individual SWIPs for the components.
 
 ### Backward compatibility 
 
-Due to secondary addresses, the new chunktype we define, as well as  parameters relating to insurance requirements within a core protocol, implementing this swip will break the **backard compatibility** with earlier vrsik .
+Due to secondary addresses, the new chunktype we define, as well as  parameters relating to insurance requirements within a core protocol, implementing this swip will break the **backard compatibility** with earlier versions.
 
 ## Copyright
 
