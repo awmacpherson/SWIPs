@@ -13,28 +13,55 @@ created: 2025-07-21
 
 ## Abstract
 
-This SWIP introduces a systematic way for operators to enter a service network in such a way that their overlay addresses are balanced within the address space. Importantly,  operators need to register their commitment to take part and are assigned a random neighbourhood (of depth $d=int(log_2(N))+1$). 
+This SWIP introduces a systematic way for operators to enter the network in such a way that their overlay addresses are balanced within the address space. Importantly, operators must register their commitment to take part and on doing so will be assigned a random neighbourhood from the queue of those next to be occupied. Since a joining node operator is unable to position themselves at a specific point in the network without a significant time or financial penalty, attack vectors that rely on this are rendered infeasible.
 
 ## Motivation
 
 There are multiple considerations that motivate such a scheme: 
-- **load-balancing**: any decentralised service network will be fair if tasks are distributed to nodes so that the workload assigned to each participant is roughly equal. Such load balancing is achieved if tasks are assigned based on uniform random label (i.e., the content hash of the descriptor)[^1] and nodes providing the service are balanced in the address space.
 
-[^1]: and the average size (computation/storage requirement) of tasks over a typical period of payment has tolerable variance.
+- **load-balancing**: a decentralised service network will be fair if tasks are distributed to nodes so that the workload assigned to each participant is roughly equal. Presuming load balancing is achieved if tasks[^1] are assigned based on uniform random label (i.e., the content hash of the descriptor) and nodes providing the service are balanced in the address space.
 
-- **arbitrary neighbourhood assigment**: the system needs to make sure that assignment of an overlay address to participant nodes is arbitrary. In particular, it is impractical (expensive) for any operator to attempt to place several nodes in the same storage neighbourhood (neighbourhood of depth $d=int(log_2(N))+1$). Note that, this scheme constitutes an effective solution to the problem of "one operator, one node in a neighbourhood". Taking the storage incentive system as an example, this will take care of the sybil issue[^2] without resorting to the rather weak incentive of additive stake as a proof of redundancy.[^3]
+[^1]: it is assumed that average resource utilisation (network/computation/storage requirements) of tasks over a typical period of payment remains within a tolerable variance.
 
-[^2]: that operators run several nodes in one neighbourhood without truely replicating storage and yet get paid.
+- **arbitrary neighbourhood assigment**: the system needs to make sure that assignment of an overlay address to participant nodes is arbitrary. In particular, it is impractical (expensive) for any operator to attempt to place several nodes in the same storage neighbourhood without truely replicating storage and yet get paid. Note that, this scheme constitutes an effective solution to the problem of "one operator, one node in a neighbourhood". Taking the storage incentive system as an example, this will mitigate this sybil attack, without resorting to the rather weak incentive of additive stake as a proof of redundancy.[^2]
 
-[^3]: the idea is that if stake is variable and earnings are linearly proportional to earnings then, mutatis mutandis, it is always more economical for one operator to run just one node with all the stake than several nodes due to the added operational costs.
+[^2]: the idea is that if stake is variable and earnings are linearly proportional to earnings then, mutatis mutandis, it is always more economical for one operator to run just one node with all the stake than several nodes due to the added operational costs. ↩
+
+- **extensible and user friendly approach**: the current approach taken by swarm is based on the idea is that, if stake is variable and earnings are linearly proportional to earnings then, mutatis mutandis, it is always more economical for one operator to run just one node with all the stake than several nodes due to the added operational costs. While this has proven to be an effective means to secure the protocol, it has also led to some confusion and it's complexity means it is difficult to develop. The proposed system is intended to be much simpler to reason with and for operators to use and understand.
 
 ## Architecture
 
-The balanced neighbourhood assignment (associated with a service) is orchestrated by a smart contract which is deployed together with a [staking contract](https://github.com/ethersphere/storage-incentives/blob/master/src/Staking.sol). The contract API provides 2 transactional endpoints relevant for entry: 
+The network $S$, comprises the set of all network provider nodes $\{a_0, \ldots, a_n\}$, with cardinality N. 
 
-One registers a node by its ether address ($a^\Xi$) in the *committers' list* $C$ that records nodes' commitment to participate as a provider in the associated decentralised service network. 
+Each node $a$ has an associated ether address $a_i^\Xi$ and will determine a 32 byte overlay address $a_i^\theta$.
 
-The other one is called by the staking contract after the service network stake is deposited with a valid nonce, i.e., one that will put the node in the right neighbourhood. This call will place the node among the active node set for the service, and removes the entry from the committers list. This function includes a read-only call that takes as argument a node's  ether address and returns a neighbourhood the node is assigned to. This call is public so that the client can enquire about the neighbourhood they are assigned to -- so that they can mine an overlay address into it, ie., find a nonce that is needed to generate the overlay address. 
+$
+N = |S|, \quad S = \{a_0, \ldots, a_n\} \quad a_i^{\theta} \in \mathbb{O}_{32}\,,\ a_i^\Xi \in \mathbb{E}
+$
+
+Then the current depth of the node assignment tree is defined as:
+
+$
+d_c = \lfloor \log_2(N) \rfloor + 1, \quad d_c \in \mathbb{N}
+$
+
+The balanced node assignments are orchestrated by a smart contract which will maintain the active node list, their corresponding neighbourhoods, the overlay addresses they have determined, and manage the ingress/egress processes as nodes joini and exit the set of active network service providers.
+
+This contract is deployed together with a staking contract similar to the [swarm storage incentive staking contract](https://github.com/ethersphere/storage-incentives/blob/master/src/Staking.sol). This contract will retain the total stake treasury, as well as enabling a node operator to deposit, withdrawal and maintain their stake. Concerns should be strictly separated to improve security of locked funds and upgradability of both contracts.
+
+The node assignment contract is composed of several transactional endpoints:
+
+__Commit :__  Initially, a node's ether address $a^\Xi$ is registered in the *committers' list* $C$ that records nodes' commitment to participate as a provider in the service network, depositing their application fee ${\$_a}$, which is non-refundable.
+
+__Get Assigned Overlay :__ 
+
+ This function includes a read-only call that takes as argument a node's ether address $a^\Xi$ and returns the neighbourhood that the node is currently assigned to. This call is public so that the client can enquire about the neighbourhood they are assigned to -- so that they can mine an overlay address into it, ie., find a nonce that is needed to generate the overlay address. 
+
+__Assign Overlay:__  One is called by the staking contract, after the service network stake has been deposited with a valid nonce $\vartheta$, i.e., one that, when it is used as a parameter with the Swarm Overlay address calculation $\mathcal{O}$, will produce an overlay address $a^\theta$ from the nodes corresponding ether address $a^\Xi$ which is in the correct neighbourhood. 
+
+$\vartheta \in \mathbb{Z}_{\geq 0} , \quad \mathcal{O}(a,\vartheta) \equiv a^\theta $
+
+This call will place the node among the active node set for the service, and removes the entry from the *committers list*.
 
 ## Specification
 
@@ -43,24 +70,27 @@ An initially empty list (*committers' list*) of *entry struct* types holds the c
 <!-- For each new registrant, the number $N$ is incremented.  -->
 
 
+
 #### Deposit
-In order for a node to get its address registered, an amount  of $S_0$ (stake zero) must be deposited. 
+In order for a node to get its address registered, an amount of ${\$_a}$ must be deposited which is non-refundable. 
 
 #### Uniqueness
 In order to prevent repeated trials, each node must be registered only once. 
 
-After checking the deposit amount and the uniqueness check on the ether address, the current blockheight is recorded with the address by pushing the entry struct ($e_n=<a^\Xi,h>$) to the end of committers list.
+After checking the deposit amount and the uniqueness check on the ether address, the current blockheight is recorded with the address by pushing the entry struct ($e_i\ = \ <a_i^\Xi,h>$) to the end of committers list.
 
 #### Validity 
-The entry is valid for a period of $B$ blocks after the registration[^55].
+The entry is valid for a period of $B, \quad B < 256 $ blocks after the registration.
 
-[^55]: $B$ is less than $256$, the number of blocks available from within the EVM).
+$B$ must be less than $256$, the number of blocks for which the blockhash is available from within the EVM. ((unless the blockhash is recorded))
 
-Since the blockheight values of the list items are monotonically increasing, entries at the beginning of the list expire first. By iterating upto the first valid entry, expired entries can be iterated on efficiently. 
+Since the blockheight values of the list items are monotonically increasing, entries at the beginning of the list expire first. By iterating upto the first valid entry, expired entries can be iterated on efficiently.
+
+>> SIG//NOTE should have time limit on commiting to assigned neighbourhood overlay before providingn nonce. this queing has some unintended consequences in terms of enabling squatting or blocking. the economic disincentives must be calculated and parameters/constants and/or slashing formula created i.e. how much to probably block one neighbourhood then subsequently provoke a split causing data loss.
 
 ### Expiry
 
-This function call iterates through all expired entries, burns their deposit, and, by setting the head  of the list to the first valid item, removes them from the committer's list.
+This function call iterates through all expired entries, burns their deposit, and, by setting the head of the list to the first valid item, removes them from the committer's list.
 
 This is called by the assign function (itself called by the staking contract) before the read only call checking if the resulting overlay address falls into the neighbourhood that the registrant was assigned to, i.e., the correctness of the nonce submitted from the perspective of the staking contract. 
 
@@ -71,11 +101,14 @@ After calling expiry, the validity of the registration is checked by finding the
 
 #### Initialisation 
 
-Let $\overline{N}=2^d$ be the lowest power of 2 that is  greater than $N$,    the number of already assigned registrants, and let $d$ be its exponent ($d=int(log_2(N))+1$). Let $R$ be the array of the remaining unassigned neighbourhoods of this level (i.e., $len(R)=\overline{N}-N$). Whenever $len(R)$ drops to $0$, $d$ is incremented and $\overline{N}=2^d$ adjusts. At any point in time, a $uint256$ array of length $\overline{N}$ is maintained, called the *assignments list* $A$ holding the registered nodes' overlay addresses.
-Whenever $d$ changes, new arrays for assigments $A_d$ and remainders $R_d$ are created (both twice the size of the previous one $A_{d-1}$ and $R_{d-1}$). We iterate through the current array and for each overlay address $a^O_i$ at position $i$ copy $a^O_i$ to position $2\cdot i +b_i$ where $b_i=1$ if the $d$-th bit of the address is set:
+Let $\overline{N}=2^d$ be the lowest power of 2 that is greater than $N$, the number of already assigned registrants, where $d$ and $N$ are defined as before. Let $R$ be the array of the remaining unassigned neighbourhoods of this level (i.e., $|R|=\overline{N}-N$). 
+
+Whenever the number of slots at this depth, $|R|$ drops to $0$, $d$ is incremented and $\overline{N}=2^d$ adjusts. At any point in time, a $uint256$ array of length $\overline{N}$ is maintained, called the *assignments list* $A$ holding the currently registered nodes' overlay addresses.
+
+Whenever $d$ changes, new arrays for assigments $A_d$ and remainders $R_d$ are created (both twice the size of the previous one $A_{d-1}$ and $R_{d-1}$). We iterate through the current array and for each overlay address $a_i^\theta$ at position $i$ copy $a_i^\theta$ to position $2i +b_i$ where $b_i=1$ if the $d$-th bit of the address is set:
 
 $$
-b_i=a^O_i[d/8]
+b_i=a^\theta_i[d/8]
 $$
 
 $$
@@ -90,37 +123,38 @@ $$
 In fact, $A_d$ stands for nodes of a binary tree on level $d$ and the value at each position is the overlay address filling that neighbourhood. When $d$ is incremented, we will need to fill some of the neighbourhoods with the existing nodes. Each node will fill the left child node (when $b_i=0$) or the right one ($b_i=1$) depending on the subsequent bit in their overlay.
 
 $$
-\forall 0\leq i < 2^d, A_d[2\cdot i+b_i]=A_{d-1}[i]
+\forall\ 0\leq i < 2^d,\quad A_d[2i+b_i]=A_{d-1}[i]
 $$
 
 As we are filling the assignment list, we know that the whenever a neighbourhood is filled with an already existing node, its sister neighbourhood will be unassigned, therefore we can just record those in the remaining list.
 
 $$
-\forall 0\leq i < len(R_d), R_d[i]=2\cdot i+1-b_i
+\forall\ 0\leq i < |R_d|,\quad R_d[i]=2i+1-b_i
 $$
 
 
 #### Random seed
 
-This internal read-only call takes as its single argument an ether address ($a^\Xi$) and returns a random $uint256$. 
-After checking if the ether address is a valid registrant by finding the corresponding first (unique) $entry$ struct,[^33] the `difficulty` (randao) is called on the block subsequent to the blockheight registered. Append to it the ether address and hash it to yield what will serve as the random seed for this provider.[^4]
+This internal read-only call takes as its single argument an ether address ($a^\Xi$) and returns a (?) random $\rho \in \mathbb{Z}_\text{uint256}$. 
+After checking if the ether address is a valid registrant by finding the corresponding first (unique) $entry$ struct,[^33] the `difficulty` (randao) is called on the block subsequent to the blockheight registered. Append to it the ether address and hash using $H$ it to yield what will serve as the random seed for this provider.[^4]
 
 $$
-\sigma:=\mathit{blockAtHeight}(\mathit{entry}(a^\Xi).\mathit{height}+1).\mathit{difficulty}()
+\sigma=\mathit{blockAtHeight}(\mathit{entry}(a^\Xi).\mathit{height}+1).\mathit{difficulty}()
 $$
 
 $$
-\varrho:=\mathit{uint256}(H(\sigma|a^\Xi))
+\varrho=\mathit{uint256}(H(\sigma|a^\Xi))
 $$
 
-[^33]: Since expiry is not necessarily called when the random seed it called, the blockheight needs to be checked: 1) if block after $h$ (the one in which the registration happened) is available, 2) that the height is not greater than $h+D$ with $D$ being the validity period in blocks.
+[^33]: Since expiry is not necessarily called when the random seed it called, the blockheight needs to be checked: 1) if block after $h$ (the one in which the registration happened) is available, 2) that the height is not greater than $h+B$ with $B$ being the validity period in blocks.
 
 [^4]: Even if on  a POA chain, and no randao, this seed cannot be known to the registering provider and their colluding  associates, but nonetheless should be deterministic once its set.
 
 #### Neighbourhood
 
-This component must be available as a public readonly endpoint taking a node's ($n$) ether address ($a^\Xi_n$)  as a single argument.
-The random nonce $\varrho_n$ is used to select a neighbourhood $nh$ for a provider from the remaining unassigned neighbourhood list of level $d$:
+This component must be available as a public readonly endpoint taking a node's ($j\text{-th}$) ether address ($a^\Xi_j$)  as a single argument.
+
+A random nonce $\varrho_n$ is used to select a neighbourhood $nh$ for a provider from the remaining unassigned neighbourhood list of level $d$:
 
 $$
 i:=\varrho\mod len(R_d)
@@ -153,6 +187,9 @@ $$
 - the $i$-th item is removed from remaining open neighbourhood list $R_d$.
 - if $R_d$ is now of zero length, the $d$ is incremented, and new assignment and remaining lists are initialised as per section 'initialisation' above.
 - provider's entry is removed from the committers' list.
+
+### Economic Analysis
+
 
 
 ### Further endpoints
